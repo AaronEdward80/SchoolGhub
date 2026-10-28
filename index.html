@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Game Hub</title>
+<style>
+  :root { --bg:#0f1220; --card:#1a1e33; --accent:#6c8cff; --text:#e8ebff; --muted:#8e94b8; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif; background:var(--bg); color:var(--text); }
+  header { display:flex; flex-wrap:wrap; gap:12px; align-items:center; justify-content:space-between; padding:16px 24px; background:#141830; position:sticky; top:0; z-index:5; }
+  header h1 { margin:0; font-size:1.4rem; cursor:pointer; }
+  header h1 span { color:var(--accent); }
+  #search { padding:10px 14px; border-radius:10px; border:1px solid #2a3050; background:#0f1220; color:var(--text); width:min(320px,100%); font-size:1rem; }
+  main { padding:24px; max-width:1200px; margin:auto; }
+  #grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(170px,1fr)); gap:16px; }
+  .card { background:var(--card); border-radius:14px; overflow:hidden; cursor:pointer; transition:transform .12s, box-shadow .12s; border:1px solid #242a48; }
+  .card:hover { transform:translateY(-3px); box-shadow:0 8px 20px rgba(0,0,0,.4); border-color:var(--accent); }
+  .thumb { aspect-ratio:4/3; background:linear-gradient(135deg,#2a3270,#4a2a70); display:flex; align-items:center; justify-content:center; font-size:2.6rem; font-weight:700; color:#fff; }
+  .thumb img { width:100%; height:100%; object-fit:cover; display:block; }
+  .card .name { padding:10px 12px; font-size:.95rem; }
+  #empty { color:var(--muted); text-align:center; margin-top:60px; display:none; }
+  #player { display:none; flex-direction:column; height:calc(100vh - 70px); }
+  #bar { display:flex; gap:10px; align-items:center; padding:10px 24px; }
+  button { background:var(--accent); color:#fff; border:0; padding:9px 16px; border-radius:9px; font-size:.95rem; cursor:pointer; }
+  button.ghost { background:#242a48; }
+  #title { flex:1; font-weight:600; }
+  iframe { flex:1; width:100%; border:0; background:#000; }
+</style>
+</head>
+<body>
+<header>
+  <h1 id="home">🎮 Game <span>Hub</span></h1>
+  <input id="search" type="search" placeholder="Search games…" autocomplete="off">
+</header>
+
+<main id="library">
+  <div id="grid"></div>
+  <p id="empty">No games found.</p>
+</main>
+
+<section id="player">
+  <div id="bar">
+    <button class="ghost" id="back">← Back</button>
+    <div id="title"></div>
+    <button id="reload" class="ghost">Reload</button>
+    <button id="full">Fullscreen</button>
+  </div>
+  <iframe id="frame" allow="fullscreen; gamepad; autoplay; clipboard-write" allowfullscreen></iframe>
+</section>
+
+<script>
+let games = [];
+const $ = id => document.getElementById(id);
+
+const pretty = n => n.replace(/\.html?$/i, '').replace(/[-_]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+const slug = n => n.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
+// Fallback: read the games/ folder directly from GitHub (works on username.github.io/repo)
+async function loadFromGitHub() {
+  const m = location.hostname.match(/^(.+)\.github\.io$/i);
+  const repo = location.pathname.split('/').filter(Boolean)[0];
+  if (!m || !repo) throw new Error('not on github.io');
+  const owner = m[1];
+  const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/games`);
+  if (!res.ok) throw new Error('GitHub API ' + res.status);
+  const items = await res.json();
+  const out = [];
+  for (const it of items) {
+    if (it.name.startsWith('.')) continue;
+    if (it.type === 'dir') {
+      out.push({ id: slug(it.name), title: pretty(it.name), path: `games/${it.name}/index.html`, thumb: null });
+    } else if (/\.html?$/i.test(it.name)) {
+      out.push({ id: slug(it.name), title: pretty(it.name), path: `games/${it.name}`, thumb: null });
+    }
+  }
+  return out;
+}
+
+async function load() {
+  let problem = '', meta = [];
+  try {
+    const res = await fetch('games.json?' + Date.now());
+    if (!res.ok) throw new Error('games.json ' + res.status);
+    meta = await res.json();
+  } catch (e) { problem = 'Could not load games.json (' + e.message + ').'; }
+  try {
+    // The games folder on GitHub is the source of truth; games.json only adds nicer titles/thumbnails.
+    const live = await loadFromGitHub();
+    const byId = Object.fromEntries(meta.map(m => [m.id, m]));
+    games = live.map(g => Object.assign({}, g, byId[g.id] ? { title: byId[g.id].title, thumb: byId[g.id].thumb } : {}));
+  } catch (e) {
+    games = meta;
+    problem += ' Could not read the games folder (' + e.message + ').';
+  }
+  games.sort((a, b) => a.title.localeCompare(b.title));
+  if (!games.length) {
+    $('empty').innerHTML = 'No games found.<br><small>' + problem +
+      ' Make sure the <b>games</b> folder is uploaded to the repo (e.g. games/snake/index.html), and that you opened the github.io link, not a downloaded file.</small>';
+  }
+  render();
+  const hash = decodeURIComponent(location.hash.slice(1));
+  if (hash) { const g = games.find(x => x.id === hash); if (g) play(g); }
+}
+
+function render() {
+  const q = $('search').value.trim().toLowerCase();
+  const list = games.filter(g => g.title.toLowerCase().includes(q));
+  const grid = $('grid');
+  grid.innerHTML = '';
+  list.forEach(g => {
+    const card = document.createElement('div');
+    card.className = 'card';
+    const thumb = document.createElement('div');
+    thumb.className = 'thumb';
+    if (g.thumb) {
+      const img = document.createElement('img');
+      img.src = g.thumb; img.alt = ''; img.loading = 'lazy';
+      img.onerror = () => { thumb.textContent = g.title[0].toUpperCase(); };
+      thumb.appendChild(img);
+    } else thumb.textContent = g.title[0].toUpperCase();
+    const name = document.createElement('div');
+    name.className = 'name'; name.textContent = g.title;
+    card.append(thumb, name);
+    card.onclick = () => play(g);
+    grid.appendChild(card);
+  });
+  $('empty').style.display = list.length ? 'none' : 'block';
+}
+
+function play(g) {
+  $('library').style.display = 'none';
+  $('player').style.display = 'flex';
+  $('title').textContent = g.title;
+  $('frame').src = g.path;
+  history.replaceState(null, '', '#' + encodeURIComponent(g.id));
+  document.title = g.title + ' – Game Hub';
+}
+
+function home() {
+  $('frame').src = 'about:blank';
+  $('player').style.display = 'none';
+  $('library').style.display = 'block';
+  history.replaceState(null, '', location.pathname);
+  document.title = 'Game Hub';
+}
+
+$('search').addEventListener('input', () => { if ($('player').style.display === 'flex') home(); render(); });
+$('back').onclick = home;
+$('home').onclick = home;
+$('reload').onclick = () => { $('frame').src = $('frame').src; };
+$('full').onclick = () => { const f = $('frame'); (f.requestFullscreen || f.webkitRequestFullscreen).call(f); };
+load();
+</script>
+</body>
+</html>
