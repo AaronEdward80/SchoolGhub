@@ -1,0 +1,38 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Number Slide</title>
+<style>
+body{margin:0;background:#0f1220;color:#e8ebff;font-family:system-ui,sans-serif;display:flex;flex-direction:column;align-items:center;padding:12px;touch-action:none}
+h1{margin:6px 0;font-size:22px}.bar{display:flex;gap:14px;align-items:center;margin:8px 0}
+button{background:#6c8cff;color:#fff;border:0;border-radius:8px;padding:8px 14px;font-size:14px;cursor:pointer}
+#b{position:relative;background:#1a1e33;border-radius:12px;padding:8px;display:grid;grid-template-columns:repeat(4,var(--s));gap:8px}
+.t{width:var(--s);height:var(--s);border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:calc(var(--s)*.4);background:#242a48;color:#e8ebff}
+.v2{background:#2a3270}.v4{background:#34459a}.v8{background:#4a6cd8}.v16{background:#6c8cff;color:#0f1220}.v32{background:#6cf0ff;color:#0f1220}.v64{background:#6cffa0;color:#0f1220}.v128{background:#ffe45c;color:#0f1220;font-size:calc(var(--s)*.33)}.v256{background:#ffa45c;color:#0f1220;font-size:calc(var(--s)*.33)}.v512{background:#ff7a5c;color:#0f1220;font-size:calc(var(--s)*.33)}.v1024{background:#ff5c7a;font-size:calc(var(--s)*.28)}.v2048{background:#c56cff;font-size:calc(var(--s)*.28)}.vbig{background:#fff;color:#0f1220;font-size:calc(var(--s)*.25)}
+#msg{height:24px;color:#ffe45c;font-weight:600}
+</style></head><body>
+<h1>Number Slide</h1>
+<div class="bar"><span id="sc">Score: 0</span><span id="best">Best: 0</span><button id="new">New game</button></div>
+<div id="msg"></div><div id="b"></div>
+<p style="color:#8e94b8;font-size:13px;text-align:center">Arrow keys / WASD or swipe. Merge equal tiles to reach 2048.</p>
+<script>
+let g,score,best=0,won=false,over=false;const B=document.getElementById('b'),msg=document.getElementById('msg');
+try{best=+localStorage.getItem('ns_best')||0}catch(e){}
+function empty(){return Array.from({length:4},()=>Array(4).fill(0))}
+function add(){const e=[];g.forEach((r,i)=>r.forEach((v,j)=>{if(!v)e.push([i,j])}));if(!e.length)return;const[i,j]=e[Math.floor(Math.random()*e.length)];g[i][j]=Math.random()<.9?2:4}
+function init(){g=empty();score=0;won=false;over=false;msg.textContent='';add();add();draw()}
+function draw(){const s=Math.max(56,Math.min(90,Math.floor((Math.min(innerWidth,460)-60)/4)));document.documentElement.style.setProperty('--s',s+'px');B.innerHTML='';
+  g.forEach(r=>r.forEach(v=>{const d=document.createElement('div');d.className='t'+(v?' v'+(v>2048?'big':v):'');d.textContent=v||'';B.appendChild(d)}));
+  document.getElementById('sc').textContent='Score: '+score;best=Math.max(best,score);document.getElementById('best').textContent='Best: '+best;try{localStorage.setItem('ns_best',best)}catch(e){}}
+function slide(row){const a=row.filter(v=>v);let pts=0;for(let i=0;i<a.length-1;i++)if(a[i]===a[i+1]){a[i]*=2;pts+=a[i];a.splice(i+1,1)}while(a.length<4)a.push(0);return{a,pts}}
+function move(dir){
+  if(over)return;const before=JSON.stringify(g);let pts=0;
+  for(let k=0;k<4;k++){let line=[];for(let j=0;j<4;j++){const[r,c]=dir==='l'?[k,j]:dir==='r'?[k,3-j]:dir==='u'?[j,k]:[3-j,k];line.push(g[r][c])}
+    const res=slide(line);pts+=res.pts;for(let j=0;j<4;j++){const[r,c]=dir==='l'?[k,j]:dir==='r'?[k,3-j]:dir==='u'?[j,k]:[3-j,k];g[r][c]=res.a[j]}}
+  if(JSON.stringify(g)===before)return;score+=pts;add();draw();
+  if(!won&&g.some(r=>r.includes(2048))){won=true;msg.textContent='🎉 You made 2048! Keep going if you like.'}
+  if(!canMove()){over=true;msg.textContent='Game over — no moves left.'}
+}
+function canMove(){for(let i=0;i<4;i++)for(let j=0;j<4;j++){if(!g[i][j])return true;if(j<3&&g[i][j]===g[i][j+1])return true;if(i<3&&g[i][j]===g[i+1][j])return true}return false}
+addEventListener('keydown',e=>{const m={arrowleft:'l',a:'l',arrowright:'r',d:'r',arrowup:'u',w:'u',arrowdown:'d',s:'d'}[e.key.toLowerCase()];if(m){e.preventDefault();move(m)}});
+let sx,sy;addEventListener('touchstart',e=>{sx=e.touches[0].clientX;sy=e.touches[0].clientY},{passive:true});
+addEventListener('touchend',e=>{const dx=e.changedTouches[0].clientX-sx,dy=e.changedTouches[0].clientY-sy;if(Math.max(Math.abs(dx),Math.abs(dy))<24)return;move(Math.abs(dx)>Math.abs(dy)?(dx>0?'r':'l'):(dy>0?'d':'u'))},{passive:true});
+document.getElementById('new').onclick=init;addEventListener('resize',draw);init();
+</script></body></html>

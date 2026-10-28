@@ -1,0 +1,43 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Typing Test</title>
+<style>
+*{box-sizing:border-box}body{margin:0;min-height:100vh;background:#0f1220;color:#e8ebff;font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;padding:16px}
+.card{width:min(760px,100%);background:#1a1e33;border:1px solid #242a48;border-radius:14px;padding:20px}
+h1{margin:0 0 12px;font-size:1.3rem}.bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+select,button,input{font:inherit;border-radius:8px;border:1px solid #2a3050;background:#0f1220;color:#e8ebff;padding:8px 12px}
+button{background:#6c8cff;border:0;color:#fff;cursor:pointer}#time{margin-left:auto;font-size:1.4rem;font-weight:700;color:#ffd65c}
+#words{height:130px;overflow:hidden;position:relative;background:#141830;border-radius:10px;padding:12px;line-height:2.1;font-size:1.25rem;margin-bottom:12px}
+#words span{margin-right:10px;padding:2px 3px;border-radius:4px}
+.cur{background:#2a3270}.ok{color:#6cffa0}.bad{color:#ff5c7a}.curbad{background:#6b2a3c}
+#inp{width:100%;font-size:1.2rem}#res{margin-top:14px;font-size:1.1rem;line-height:1.6}
+</style></head><body>
+<div class="card"><h1>Typing Test</h1>
+<div class="bar"><select id="len"><option value="30">30 seconds</option><option value="60">60 seconds</option></select><button id="restart">Restart</button><span id="time">30</span></div>
+<div id="words"></div><input id="inp" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Start typing... press Space after each word"><div id="res"></div></div>
+<script>
+const BASE='the of and to in is you that it he was for on are as with his they at be this from have or by one had not but what all were when we there can an your which their said if do will each about how up out them then she many some so these would other into has more her two like him see time could no make than first been its who now people my made over did down only way find use may water long little very after words called just where most know get through back much before go good new write our me man too any day same right look think also around another came come work three word must because does part even place well such here take why help put different away again off went old number great tell men say small every found still between name should home big give air line set own under read last never us left end along while might next sound below saw something thought both few those always looked show large often together asked house don\'t world going want school important until form food keep children feet land side without boy once animals life enough took sometimes four head above kind began almost live page got earth need far hand high year mother light country father let night picture being study second soon story since white ever paper hard near sentence better best across during today however sure knew try told young sun thing whole hear example heard several change answer room sea against top turned learn point city play toward five using himself usually'.split(' ').filter(w=>/^[a-z]+$/.test(w));
+const $=id=>document.getElementById(id);
+let list,idx,right,wrong,chars,left,timer,running,total;
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+function reset(){
+  clearInterval(timer);running=false;idx=right=wrong=chars=0;total=+$('len').value;left=total;$('time').textContent=left;$('res').textContent='';
+  list=shuffle(BASE.slice()).concat(shuffle(BASE.slice())).concat(shuffle(BASE.slice()));
+  const w=$('words');w.innerHTML='';list.forEach((x,i)=>{const s=document.createElement('span');s.textContent=x;s.id='w'+i;w.appendChild(s)});w.scrollTop=0;mark();
+  $('inp').disabled=false;$('inp').value='';$('inp').focus()}
+function mark(){const s=$('w'+idx);if(!s)return;s.className=(s.dataset.bad?'curbad':'cur');const w=$('words');w.scrollTop=Math.max(0,s.offsetTop-w.offsetTop-14)}
+function begin(){running=true;timer=setInterval(()=>{left--;$('time').textContent=left;if(left<=0)finish()},1000)}
+function finish(){
+  clearInterval(timer);running=false;$('inp').disabled=true;
+  const wpm=Math.round(chars/5/(total/60)),n=right+wrong,acc=n?Math.round(right/n*100):0;
+  $('res').innerHTML='<b>'+wpm+' WPM</b><br>Accuracy: '+acc+'% ('+right+' correct, '+wrong+' wrong words)'}
+$('inp').addEventListener('input',e=>{
+  if(left<=0)return;
+  const v=$('inp').value;
+  if(!running&&v.trim())begin();
+  const cur=$('w'+idx);if(!cur)return;
+  if(v.endsWith(' ')){
+    const typed=v.trim();if(!typed){$('inp').value='';return}
+    if(typed===list[idx]){right++;chars+=typed.length+1;cur.className='ok'}else{wrong++;cur.className='bad'}
+    idx++;$('inp').value='';mark();return}
+  cur.dataset.bad=list[idx].startsWith(v)?'':'1';mark()});
+$('restart').onclick=reset;$('len').onchange=reset;reset();
+</script></body></html>

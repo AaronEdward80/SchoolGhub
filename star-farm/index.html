@@ -1,0 +1,47 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Star Farm</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#0f1220;color:#e8ebff;font-family:system-ui,sans-serif}
+#app{max-width:900px;margin:auto;padding:16px;display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:700px){#app{grid-template-columns:1fr}}
+.card{background:#1a1e33;border:1px solid #242a48;border-radius:14px;padding:16px}
+#top{text-align:center}#count{font-size:2rem;font-weight:700}#cps{color:#8e94b8}
+#star{font-size:110px;line-height:1;background:none;border:0;cursor:pointer;user-select:none;transition:transform .05s;margin:10px 0;filter:drop-shadow(0 0 18px #ffd65c88)}
+#star:active{transform:scale(.9)}
+.row{display:flex;justify-content:space-between;align-items:center;gap:10px;background:#141830;border:1px solid #242a48;border-radius:10px;padding:10px 12px;margin-bottom:8px;cursor:pointer;color:#e8ebff;width:100%;font:inherit;text-align:left}
+.row:disabled{opacity:.45;cursor:not-allowed}.row:not(:disabled):hover{border-color:#6c8cff}
+.row small{color:#8e94b8;display:block}.cost{color:#ffd65c;white-space:nowrap}
+button.reset{background:#242a48;color:#e8ebff;border:0;padding:8px 14px;border-radius:8px;cursor:pointer;margin-top:8px}
+h2{margin:0 0 12px;font-size:1.1rem}
+</style></head><body>
+<div id="app">
+ <div class="card" id="top"><div id="count">0</div><div id="cps"></div><button id="star" aria-label="Collect stars">⭐</button><div id="tapinfo" style="color:#8e94b8"></div></div>
+ <div class="card"><h2>Shop</h2><div id="shop"></div><button class="reset" id="reset">Reset progress</button></div>
+</div>
+<script>
+const U=[
+ {n:'Stardust Sifter',base:15,cps:.2},{n:'Comet Catcher',base:100,cps:1},{n:'Moon Garden',base:500,cps:5},{n:'Nebula Farm',base:3000,cps:25},
+ {n:'Orbital Mill',base:15000,cps:120},{n:'Star Forge',base:100000,cps:700},{n:'Galaxy Loom',base:750000,cps:4000},{n:'Cosmic Engine',base:6000000,cps:25000}];
+let S={stars:0,tapLvl:0,own:U.map(()=>0)};
+try{const d=JSON.parse(localStorage.getItem('starfarm'));if(d&&typeof d.stars==='number')S=Object.assign(S,d)}catch(e){}
+S.own=U.map((_,i)=>S.own&&S.own[i]||0);
+const $=id=>document.getElementById(id);
+function fmt(n){if(n<1000)return n<10?n.toFixed(1).replace(/\.0$/,''):Math.floor(n).toString();const s=['','K','M','B','T','Qa','Qi'];let i=Math.min(s.length-1,Math.floor(Math.log10(n)/3));const v=n/Math.pow(10,3*i);return v.toFixed(v<10?2:v<100?1:0)+s[i]}
+const tap=()=>1+S.tapLvl*2,tapCost=()=>Math.ceil(50*Math.pow(2.2,S.tapLvl));
+const cost=i=>Math.ceil(U[i].base*Math.pow(1.15,S.own[i]));
+const cps=()=>U.reduce((a,u,i)=>a+u.cps*S.own[i],0);
+const shop=$('shop');const rows=[];
+function mkRow(name,desc,fn){const b=document.createElement('button');b.className='row';b.innerHTML='<span><b></b><small></small></span><span class="cost"></span>';b.onclick=fn;shop.appendChild(b);rows.push({b,name,desc});b.querySelector('b').textContent=name;return b}
+mkRow('Stronger Tap','',()=>{const c=tapCost();if(S.stars>=c){S.stars-=c;S.tapLvl++;ui()}});
+U.forEach((u,i)=>mkRow(u.n,'',()=>{const c=cost(i);if(S.stars>=c){S.stars-=c;S.own[i]++;ui()}}));
+function ui(){
+  $('count').textContent=fmt(S.stars)+' stars';$('cps').textContent=fmt(cps())+' per second';$('tapinfo').textContent='+'+fmt(tap())+' per tap';
+  rows.forEach((r,k)=>{const c=k===0?tapCost():cost(k-1);r.b.disabled=S.stars<c;
+    r.b.querySelector('small').textContent=k===0?'Level '+S.tapLvl+' (+2 per tap each level)':'Owned '+S.own[k-1]+' - '+fmt(U[k-1].cps)+'/s each';
+    r.b.querySelector('.cost').textContent=fmt(c)})}
+$('star').onclick=()=>{S.stars+=tap();ui()};
+setInterval(()=>{S.stars+=cps()/10;ui()},100);
+setInterval(()=>{try{localStorage.setItem('starfarm',JSON.stringify(S))}catch(e){}},4000);
+let armed=false;
+$('reset').onclick=function(){if(!armed){armed=true;this.textContent='Click again to confirm reset';setTimeout(()=>{armed=false;this.textContent='Reset progress'},3000)}else{S={stars:0,tapLvl:0,own:U.map(()=>0)};try{localStorage.removeItem('starfarm')}catch(e){}armed=false;this.textContent='Reset progress';ui()}};
+ui();
+</script></body></html>

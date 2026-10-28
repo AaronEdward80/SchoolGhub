@@ -1,0 +1,31 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Desert Runner</title>
+<style>html,body{margin:0;height:100%;background:#0f1220;color:#e8ebff;font-family:system-ui,sans-serif;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center}canvas{background:#f4e3b8;border:2px solid #6c8cff;border-radius:8px;max-width:96vw;max-height:70vh}p{margin:8px;color:#8e94b8;font-size:14px;text-align:center}</style></head><body>
+<canvas id="c" width="700" height="260"></canvas>
+<p>Space / ↑ / click / tap to jump. Hold ↓ to duck. Press a key to start.</p>
+<script>
+const c=document.getElementById('c'),x=c.getContext('2d'),W=700,H=260,G=200;
+let p,obs,speed,score,best=0,state='ready',keys={},next,t=0;
+try{best=+localStorage.getItem('dr_best')||0}catch(e){}
+function newGame(){p={y:G,vy:0,duck:false};obs=[];speed=6;score=0;next=60;t=0;state='play'}
+function jump(){if(state!=='play'){newGame();return}if(p.y>=G){p.vy=-12.5}}
+addEventListener('keydown',e=>{keys[e.key.toLowerCase()]=true;if([' ','arrowup','arrowdown'].includes(e.key.toLowerCase()))e.preventDefault();if(e.key===' '||e.key==='ArrowUp'||e.key.toLowerCase()==='w')jump();else if(state!=='play')newGame()});
+addEventListener('keyup',e=>keys[e.key.toLowerCase()]=false);
+c.addEventListener('mousedown',jump);c.addEventListener('touchstart',e=>{e.preventDefault();jump()},{passive:false});
+function step(){
+  if(state!=='play')return;t++;score+=speed*.05;speed=Math.min(16,6+score/150);
+  p.duck=(keys['arrowdown']||keys['s'])&&p.y>=G;
+  p.vy+=.7+(p.duck?0.8:0);p.y+=p.vy;if(p.y>G){p.y=G;p.vy=0}
+  next--;if(next<=0){const bird=score>150&&Math.random()<.3;obs.push(bird?{x:W+20,y:G-48-Math.random()*20,w:34,h:18,bird:true}:{x:W+20,y:G,w:14+Math.random()*16,h:28+Math.random()*26,bird:false});next=45+Math.random()*50+(20-speed)*3}
+  obs.forEach(o=>o.x-=speed);obs=obs.filter(o=>o.x>-60);
+  const ph=p.duck?20:40,pw=24,px=60,py=p.y-ph;
+  for(const o of obs){const oy=o.bird?o.y:o.y-o.h;if(px<o.x+o.w&&px+pw>o.x&&py<oy+o.h&&py+ph>oy){state='over';best=Math.max(best,Math.floor(score));try{localStorage.setItem('dr_best',best)}catch(e){}}}
+}
+function draw(){
+  x.fillStyle='#f4e3b8';x.fillRect(0,0,W,H);x.fillStyle='#d9b870';x.fillRect(0,G,W,H-G);x.fillStyle='#b8955a';for(let i=0;i<W;i+=40)x.fillRect((i-t*speed)%W+(((i-t*speed)%W)<0?W:0),G+10,16,3);
+  if(!p)return;const ph=p.duck?20:40;x.fillStyle='#2a3270';x.fillRect(60,p.y-ph,24,ph);x.fillStyle='#fff';x.fillRect(76,p.y-ph+5,4,4);
+  obs.forEach(o=>{if(o.bird){x.fillStyle='#ff5c7a';x.fillRect(o.x,o.y,o.w,o.h);x.fillRect(o.x+8,o.y-8+(t%20<10?0:14),18,6)}else{x.fillStyle='#2f7a3a';x.fillRect(o.x,o.y-o.h,o.w,o.h);x.fillRect(o.x-6,o.y-o.h*.7,6,8);x.fillRect(o.x+o.w,o.y-o.h*.5,6,8)}});
+  x.fillStyle='#4a3a1a';x.font='16px system-ui';x.textAlign='right';x.fillText('HI '+best+'   '+Math.floor(score),W-12,24);
+  if(state!=='play'){x.fillStyle='rgba(0,0,0,.5)';x.fillRect(0,0,W,H);x.fillStyle='#fff';x.textAlign='center';x.font='28px system-ui';x.fillText(state==='over'?'Game over — '+Math.floor(score):'DESERT RUNNER',W/2,H/2-6);x.font='16px system-ui';x.fillText('Press Space or tap to play',W/2,H/2+24)}
+}
+setInterval(()=>{step();draw()},1000/60);
+</script></body></html>

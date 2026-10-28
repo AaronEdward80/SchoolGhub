@@ -1,0 +1,29 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Tic-Tac-Toe</title>
+<style>
+body{margin:0;background:#0f1220;color:#e8ebff;font-family:system-ui,sans-serif;display:flex;flex-direction:column;align-items:center;padding:14px}
+h1{margin:6px 0;font-size:22px}.bar{display:flex;gap:10px;margin:8px 0;flex-wrap:wrap;justify-content:center;align-items:center}
+button,select{background:#6c8cff;color:#fff;border:0;border-radius:8px;padding:8px 12px;font-size:14px;cursor:pointer}
+#b{display:grid;grid-template-columns:repeat(3,var(--s));gap:8px}
+.c{width:var(--s);height:var(--s);background:#1a1e33;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:calc(var(--s)*.6);font-weight:700;cursor:pointer}
+.c.X{color:#6c8cff}.c.O{color:#ff5c7a}.c.w{background:#1c3a2a}#msg{height:26px;font-weight:600;color:#ffe45c;margin:6px}#sc{color:#8e94b8;font-size:14px}
+</style></head><body>
+<h1>Tic-Tac-Toe</h1>
+<div class="bar"><select id="m"><option value="cpu">vs Computer (you are X)</option><option value="two">2 players</option></select><button id="new">New game</button></div>
+<div id="msg"></div><div id="b"></div><div id="sc"></div>
+<script>
+const L=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+let b,turn,done,sc={X:0,O:0,D:0};const B=document.getElementById('b'),msg=document.getElementById('msg');
+function win(b){for(const l of L)if(b[l[0]]&&b[l[0]]===b[l[1]]&&b[l[1]]===b[l[2]])return l;return null}
+function mm(b,p){const w=win(b);if(w)return{s:b[w[0]]==='O'?1:-1};if(b.every(x=>x))return{s:0};let best=null;for(let i=0;i<9;i++){if(b[i])continue;b[i]=p;const r=mm(b,p==='O'?'X':'O');b[i]='';const s=r.s;if(best===null||(p==='O'?s>best.s:s<best.s))best={s,i}}return best}
+function init(){b=Array(9).fill('');turn='X';done=false;msg.textContent='X to move';draw()}
+function draw(){const s=Math.min(110,Math.floor((innerWidth-60)/3));document.documentElement.style.setProperty('--s',s+'px');B.innerHTML='';const w=win(b);
+  b.forEach((v,i)=>{const d=document.createElement('div');d.className='c '+v+(w&&w.includes(i)?' w':'');d.textContent=v;d.onclick=()=>play(i);B.appendChild(d)});
+  document.getElementById('sc').textContent='X: '+sc.X+'   O: '+sc.O+'   Draws: '+sc.D}
+function play(i){
+  if(done||b[i])return;if(document.getElementById('m').value==='cpu'&&turn==='O')return;
+  b[i]=turn;if(end())return;turn=turn==='X'?'O':'X';msg.textContent=turn+' to move';draw();
+  if(document.getElementById('m').value==='cpu'&&turn==='O'){setTimeout(()=>{const r=mm(b.slice(),'O');b[r.i]='O';if(end())return;turn='X';msg.textContent='X to move';draw()},300)}
+}
+function end(){const w=win(b);if(w){done=true;sc[b[w[0]]]++;msg.textContent=b[w[0]]+' wins!';draw();return true}if(b.every(x=>x)){done=true;sc.D++;msg.textContent="It's a draw.";draw();return true}return false}
+document.getElementById('new').onclick=init;document.getElementById('m').onchange=()=>{sc={X:0,O:0,D:0};init()};addEventListener('resize',draw);init();
+</script></body></html>

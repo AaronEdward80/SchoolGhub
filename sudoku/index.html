@@ -1,0 +1,37 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Sudoku</title>
+<style>
+body{margin:0;background:#0f1220;color:#e8ebff;font-family:system-ui,sans-serif;display:flex;flex-direction:column;align-items:center;padding:10px}
+h1{margin:6px 0;font-size:22px}.bar{display:flex;gap:8px;margin:6px 0;flex-wrap:wrap;justify-content:center}
+button,select{background:#6c8cff;color:#fff;border:0;border-radius:8px;padding:8px 12px;font-size:14px;cursor:pointer}button.ghost{background:#242a48}
+#b{display:grid;grid-template-columns:repeat(9,var(--s));border:2px solid #6c8cff;border-radius:6px;background:#1a1e33}
+.c{width:var(--s);height:var(--s);display:flex;align-items:center;justify-content:center;font-size:calc(var(--s)*.55);border:1px solid #2a3050;cursor:pointer;box-sizing:border-box;user-select:none}
+.c.r{border-right:2px solid #6c8cff}.c.b{border-bottom:2px solid #6c8cff}.c.g{color:#e8ebff;font-weight:700}.c.u{color:#6cf0ff}.c.s{background:#2a3270}.c.h{background:#242a48}.c.e{color:#ff5c7a}
+#pad{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:10px;width:calc(var(--s)*9)}#pad button{padding:10px 0;font-size:18px}
+#msg{height:22px;color:#ffe45c;font-weight:600;margin:4px}
+</style></head><body>
+<h1>Sudoku</h1>
+<div class="bar"><select id="d"><option value="36">Easy</option><option value="46" selected>Medium</option><option value="54">Hard</option></select><button id="new">New puzzle</button><button class="ghost" id="chk">Check</button><button class="ghost" id="hint">Hint</button></div>
+<div id="msg"></div><div id="b"></div><div id="pad"></div>
+<script>
+let sol,puz,cur,sel=-1;const B=document.getElementById('b'),msg=document.getElementById('msg');
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+function ok(g,i,v){const r=Math.floor(i/9),c=i%9;for(let k=0;k<9;k++){if(g[r*9+k]===v||g[k*9+c]===v)return false}const br=r-r%3,bc=c-c%3;for(let a=0;a<3;a++)for(let b=0;b<3;b++)if(g[(br+a)*9+bc+b]===v)return false;return true}
+function fill(g){const i=g.indexOf(0);if(i<0)return true;for(const v of shuffle([1,2,3,4,5,6,7,8,9])){if(ok(g,i,v)){g[i]=v;if(fill(g))return true;g[i]=0}}return false}
+function count(g,lim){const i=g.indexOf(0);if(i<0)return 1;let n=0;for(let v=1;v<=9;v++){if(ok(g,i,v)){g[i]=v;n+=count(g,lim-n);g[i]=0;if(n>=lim)break}}return n}
+function gen(rem){sol=Array(81).fill(0);fill(sol);puz=sol.slice();const idx=shuffle([...Array(81).keys()]);let removed=0;for(const i of idx){if(removed>=rem)break;const v=puz[i];puz[i]=0;if(count(puz.slice(),2)!==1)puz[i]=v;else removed++}cur=puz.slice();sel=-1;msg.textContent='';draw()}
+function draw(){
+  const s=Math.max(30,Math.min(46,Math.floor((Math.min(innerWidth,460)-24)/9)));document.documentElement.style.setProperty('--s',s+'px');B.innerHTML='';
+  const sv=sel>=0?cur[sel]:0;
+  cur.forEach((v,i)=>{const d=document.createElement('div');d.className='c'+((i%9===2||i%9===5)?' r':'')+((Math.floor(i/9)===2||Math.floor(i/9)===5)?' b':'')+(puz[i]?' g':' u');
+    if(i===sel)d.classList.add('s');else if(sv&&v===sv)d.classList.add('h');
+    if(v)d.textContent=v;if(d.classList.contains('u')&&v&&v!==sol[i]&&window.showErr)d.classList.add('e');d.onclick=()=>{sel=i;draw()};B.appendChild(d)});
+}
+function put(v){if(sel<0||puz[sel])return;cur[sel]=v;window.showErr=false;draw();if(cur.every((x,i)=>x===sol[i]))msg.textContent='🎉 Solved!'}
+const pad=document.getElementById('pad');for(let n=1;n<=9;n++){const b=document.createElement('button');b.textContent=n;b.onclick=()=>put(n);pad.appendChild(b)}
+const er=document.createElement('button');er.textContent='⌫';er.className='ghost';er.onclick=()=>put(0);pad.appendChild(er);
+addEventListener('keydown',e=>{if(e.key>='1'&&e.key<='9')put(+e.key);else if(e.key==='Backspace'||e.key==='Delete'||e.key==='0')put(0);else if(e.key.startsWith('Arrow')&&sel>=0){e.preventDefault();const d={ArrowUp:-9,ArrowDown:9,ArrowLeft:-1,ArrowRight:1}[e.key];const n=sel+d;if(n>=0&&n<81&&!(d===1&&sel%9===8)&&!(d===-1&&sel%9===0)){sel=n;draw()}}});
+document.getElementById('new').onclick=()=>{msg.textContent='Generating…';setTimeout(()=>gen(+document.getElementById('d').value),20)};
+document.getElementById('chk').onclick=()=>{window.showErr=true;const bad=cur.some((v,i)=>v&&v!==sol[i]);msg.textContent=bad?'Some numbers are wrong (in red).':(cur.includes(0)?'Looking good so far!':'🎉 Solved!');draw()};
+document.getElementById('hint').onclick=()=>{const e=cur.map((v,i)=>v===0||v!==sol[i]?i:-1).filter(i=>i>=0);if(!e.length)return;const i=e[Math.floor(Math.random()*e.length)];cur[i]=sol[i];sel=i;window.showErr=false;draw()};
+addEventListener('resize',draw);gen(46);
+</script></body></html>

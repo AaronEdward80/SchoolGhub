@@ -1,0 +1,44 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Arena Shooter</title>
+<style>html,body{margin:0;height:100%;background:#0f1220;color:#e8ebff;font-family:system-ui,sans-serif;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center}canvas{background:#10142a;border:2px solid #6c8cff;border-radius:8px;max-width:96vw;max-height:78vh;cursor:crosshair}p{margin:8px;color:#8e94b8;font-size:13px;text-align:center}</style></head><body>
+<canvas id="c" width="720" height="480"></canvas>
+<p>WASD / arrows to move, mouse to aim, click (or hold) to shoot. Press a key to start.</p>
+<script>
+const c=document.getElementById('c'),x=c.getContext('2d'),W=720,H=480;
+let me,en,bl,parts,score,wave,state='ready',keys={},mx=W/2,my=H/2,down=false,cool=0,hp,inv,spawnN,tick=0;
+const R=(a,b)=>a+Math.random()*(b-a);
+function newGame(){me={x:W/2,y:H/2};en=[];bl=[];parts=[];score=0;wave=0;hp=5;inv=0;spawnN=0;state='play';nextWave()}
+function nextWave(){wave++;spawnN=5+wave*3}
+addEventListener('keydown',e=>{keys[e.key.toLowerCase()]=true;if(e.key.startsWith('Arrow')||e.key===' ')e.preventDefault();if(state!=='play')newGame()});
+addEventListener('keyup',e=>keys[e.key.toLowerCase()]=false);
+c.addEventListener('mousemove',e=>{const r=c.getBoundingClientRect();mx=(e.clientX-r.left)*W/r.width;my=(e.clientY-r.top)*H/r.height});
+c.addEventListener('mousedown',e=>{down=true;if(state!=='play')newGame()});addEventListener('mouseup',()=>down=false);
+c.addEventListener('touchstart',e=>{e.preventDefault();const r=c.getBoundingClientRect();mx=(e.touches[0].clientX-r.left)*W/r.width;my=(e.touches[0].clientY-r.top)*H/r.height;down=true;if(state!=='play')newGame()},{passive:false});
+c.addEventListener('touchmove',e=>{e.preventDefault();const r=c.getBoundingClientRect();mx=(e.touches[0].clientX-r.left)*W/r.width;my=(e.touches[0].clientY-r.top)*H/r.height},{passive:false});
+c.addEventListener('touchend',()=>down=false);
+function burst(px,py,col){for(let i=0;i<8;i++)parts.push({x:px,y:py,vx:R(-3,3),vy:R(-3,3),t:25,col})}
+function step(){
+  if(state!=='play')return;tick++;
+  let dx=0,dy=0;if(keys['a']||keys['arrowleft'])dx--;if(keys['d']||keys['arrowright'])dx++;if(keys['w']||keys['arrowup'])dy--;if(keys['s']||keys['arrowdown'])dy++;
+  if(dx||dy){const l=Math.hypot(dx,dy);me.x+=dx/l*3.4;me.y+=dy/l*3.4}me.x=Math.max(12,Math.min(W-12,me.x));me.y=Math.max(12,Math.min(H-12,me.y));
+  cool--;if((down||keys[' '])&&cool<=0){const a=Math.atan2(my-me.y,mx-me.x);bl.push({x:me.x,y:me.y,vx:Math.cos(a)*9,vy:Math.sin(a)*9,t:60});cool=9}
+  bl.forEach(b=>{b.x+=b.vx;b.y+=b.vy;b.t--});bl=bl.filter(b=>b.t>0&&b.x>0&&b.x<W&&b.y>0&&b.y<H);
+  if(spawnN>0&&tick%Math.max(10,40-wave*2)===0){spawnN--;const s=Math.floor(R(0,4)),p=s<2?[R(0,W),s?H+10:-10]:[s===2?-10:W+10,R(0,H)];const big=wave>2&&Math.random()<.2;en.push({x:p[0],y:p[1],hp:big?4:1+Math.floor(wave/4),sp:big?.9:R(1,1.6)+wave*.05,r:big?16:10,big})}
+  en.forEach(e=>{const a=Math.atan2(me.y-e.y,me.x-e.x);e.x+=Math.cos(a)*e.sp;e.y+=Math.sin(a)*e.sp});
+  for(const b of bl)for(const e of en){if(Math.hypot(b.x-e.x,b.y-e.y)<e.r+3){e.hp--;b.t=0;burst(b.x,b.y,'#ffe45c');if(e.hp<=0){e.dead=true;score+=e.big?50:10;burst(e.x,e.y,'#ff5c7a')}}}
+  en=en.filter(e=>!e.dead);
+  if(inv>0)inv--;else for(const e of en){if(Math.hypot(me.x-e.x,me.y-e.y)<e.r+10){hp--;inv=70;e.dead=true;burst(me.x,me.y,'#6c8cff');if(hp<=0)state='over';break}}
+  en=en.filter(e=>!e.dead);
+  parts.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.t--});parts=parts.filter(p=>p.t>0);
+  if(spawnN===0&&!en.length)nextWave();
+}
+function draw(){
+  x.fillStyle='#10142a';x.fillRect(0,0,W,H);x.strokeStyle='#181d3a';for(let i=0;i<W;i+=40){x.beginPath();x.moveTo(i,0);x.lineTo(i,H);x.stroke()}for(let i=0;i<H;i+=40){x.beginPath();x.moveTo(0,i);x.lineTo(W,i);x.stroke()}
+  (en||[]).forEach(e=>{x.fillStyle=e.big?'#c56cff':'#ff5c7a';x.beginPath();x.arc(e.x,e.y,e.r,0,7);x.fill()});
+  x.fillStyle='#ffe45c';(bl||[]).forEach(b=>{x.beginPath();x.arc(b.x,b.y,3,0,7);x.fill()});
+  (parts||[]).forEach(p=>{x.globalAlpha=p.t/25;x.fillStyle=p.col;x.fillRect(p.x,p.y,3,3);x.globalAlpha=1});
+  if(me&&state!=='over'&&(inv%8<5)){x.fillStyle='#6c8cff';x.beginPath();x.arc(me.x,me.y,10,0,7);x.fill();const a=Math.atan2(my-me.y,mx-me.x);x.strokeStyle='#fff';x.lineWidth=3;x.beginPath();x.moveTo(me.x,me.y);x.lineTo(me.x+Math.cos(a)*18,me.y+Math.sin(a)*18);x.stroke();x.lineWidth=1}
+  x.fillStyle='#e8ebff';x.font='16px system-ui';x.textAlign='left';x.fillText('Score '+(score||0)+'   Wave '+(wave||0),10,22);x.textAlign='right';x.fillText('HP '+'♥'.repeat(Math.max(0,hp||0)),W-10,22);
+  if(state!=='play'){x.fillStyle='rgba(0,0,0,.65)';x.fillRect(0,0,W,H);x.fillStyle='#fff';x.textAlign='center';x.font='30px system-ui';x.fillText(state==='over'?'Game over — '+score:'ARENA SHOOTER',W/2,H/2-6);x.font='16px system-ui';x.fillText('Press any key or click to play',W/2,H/2+26)}
+}
+setInterval(()=>{step();draw()},1000/60);
+</script></body></html>
