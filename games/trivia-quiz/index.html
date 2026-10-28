@@ -1,0 +1,76 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Trivia Quiz</title>
+<style>
+*{box-sizing:border-box}body{margin:0;min-height:100vh;background:#0f1220;color:#e8ebff;font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;padding:16px}
+.card{width:min(640px,100%);background:#1a1e33;border:1px solid #242a48;border-radius:14px;padding:22px}
+h1{margin:0 0 4px;font-size:1.3rem}#meta{color:#8e94b8;margin-bottom:14px}#q{font-size:1.25rem;margin-bottom:16px;line-height:1.4}
+.opt{display:block;width:100%;text-align:left;margin-bottom:10px;padding:12px 14px;border-radius:10px;border:1px solid #2a3050;background:#141830;color:#e8ebff;font:inherit;cursor:pointer}
+.opt:hover:not(:disabled){border-color:#6c8cff}.opt.good{background:#1f5a3a;border-color:#6cffa0}.opt.bad{background:#5a1f2c;border-color:#ff5c7a}
+#next,#again{background:#6c8cff;color:#fff;border:0;padding:10px 18px;border-radius:9px;font:inherit;cursor:pointer;margin-top:6px}
+#big{font-size:2.2rem;font-weight:700;margin:12px 0}
+</style></head><body><div class="card"><h1>Trivia Quiz</h1><div id="meta"></div><div id="q"></div><div id="opts"></div><button id="next" hidden>Next</button></div>
+<script>
+const Q=[
+['Which planet is the largest in our solar system?',['Mars','Jupiter','Saturn','Neptune'],1],
+['What is the chemical symbol for gold?',['Ag','Gd','Au','Go'],2],
+['What is the capital of Australia?',['Sydney','Melbourne','Canberra','Perth'],2],
+['How many continents are there?',['5','6','7','8'],2],
+['Which gas do plants absorb for photosynthesis?',['Oxygen','Carbon dioxide','Nitrogen','Helium'],1],
+['Which river is the longest in Africa?',['Nile','Congo','Niger','Zambezi'],0],
+['Which planet is known as the Red Planet?',['Venus','Mercury','Mars','Uranus'],2],
+['How many sides does a hexagon have?',['5','6','7','8'],1],
+['Who painted the Mona Lisa?',['Michelangelo','Raphael','Leonardo da Vinci','Van Gogh'],2],
+['What is the hardest natural substance?',['Gold','Iron','Quartz','Diamond'],3],
+['Which is the largest ocean?',['Atlantic','Indian','Arctic','Pacific'],3],
+['What is the capital of Japan?',['Kyoto','Tokyo','Osaka','Seoul'],1],
+['How many bones are in an adult human body?',['106','206','306','406'],1],
+['Which organ pumps blood around the body?',['Liver','Lungs','Heart','Kidney'],2],
+['In which year did World War II end?',['1918','1939','1945','1963'],2],
+['Who was the first President of the United States?',['Abraham Lincoln','George Washington','Thomas Jefferson','John Adams'],1],
+['What is the smallest prime number?',['0','1','2','3'],2],
+['Which animal is native to Australia?',['Kangaroo','Llama','Panda','Lion'],0],
+['About how fast does light travel?',['300 km/s','3,000 km/s','300,000 km/s','3,000,000 km/s'],2],
+['At sea level, water boils at what temperature in Celsius?',['50','90','100','212'],2],
+['Which mountain is the tallest above sea level?',['K2','Mount Everest','Kilimanjaro','Mont Blanc'],1],
+['Who wrote Romeo and Juliet?',['Charles Dickens','Mark Twain','Jane Austen','William Shakespeare'],3],
+['Which planet is famous for its rings?',['Saturn','Mars','Earth','Mercury'],0],
+['What is the square root of 144?',['10','11','12','14'],2],
+['On which continent is the Sahara Desert?',['Asia','Africa','South America','Australia'],1],
+['What force keeps us on the ground?',['Magnetism','Friction','Gravity','Inertia'],2],
+['What is the largest mammal?',['African elephant','Blue whale','Giraffe','Hippopotamus'],1],
+['How many minutes are in one day?',['1,000','1,200','1,440','2,400'],2],
+['Which language has the most native speakers?',['English','Spanish','Hindi','Mandarin Chinese'],3],
+['What is the capital of Canada?',['Toronto','Vancouver','Ottawa','Montreal'],2],
+['Which element has atomic number 1?',['Helium','Hydrogen','Oxygen','Carbon'],1],
+['Which vitamin does your skin make from sunlight?',['Vitamin A','Vitamin C','Vitamin D','Vitamin K'],2],
+['How many players from one team are on a soccer field at a time?',['9','10','11','12'],2],
+['Which ancient wonder is still standing today?',['Colossus of Rhodes','Great Pyramid of Giza','Hanging Gardens','Lighthouse of Alexandria'],1],
+['Which sea is so salty that people float easily in it?',['Red Sea','Black Sea','Dead Sea','Baltic Sea'],2],
+['At what temperature in Fahrenheit does water freeze?',['0','32','50','100'],1],
+['Which planet is closest to the Sun?',['Venus','Earth','Mercury','Mars'],2],
+['What do bees produce?',['Silk','Honey','Milk','Wax paper'],1],
+['Which instrument has 88 keys?',['Guitar','Violin','Piano','Flute'],2],
+['Which is the largest hot desert in the world?',['Gobi','Sahara','Kalahari','Mojave'],1],
+['Who developed the theory of relativity?',['Isaac Newton','Albert Einstein','Galileo Galilei','Nikola Tesla'],1]
+];
+const $=id=>document.getElementById(id);
+let round,i,score,locked;
+function shuffle(a){a=a.slice();for(let k=a.length-1;k>0;k--){const j=Math.floor(Math.random()*(k+1));[a[k],a[j]]=[a[j],a[k]]}return a}
+function start(){round=shuffle(Q).slice(0,10);i=0;score=0;show()}
+function show(){
+  locked=false;$('next').hidden=true;const q=round[i];
+  $('meta').textContent='Question '+(i+1)+' of 10 - Score '+score;$('q').textContent=q[0];
+  const o=$('opts');o.innerHTML='';
+  shuffle(q[1].map((t,k)=>({t,ok:k===q[2]}))).forEach(a=>{const b=document.createElement('button');b.className='opt';b.textContent=a.t;b.onclick=()=>pick(b,a.ok);b.dataset.ok=a.ok?1:'';o.appendChild(b)})}
+function pick(b,ok){
+  if(locked)return;locked=true;if(ok)score++;
+  [...document.querySelectorAll('.opt')].forEach(x=>{x.disabled=true;if(x.dataset.ok)x.classList.add('good')});
+  if(!ok)b.classList.add('bad');
+  $('meta').textContent='Question '+(i+1)+' of 10 - Score '+score;
+  $('next').textContent=i===9?'See results':'Next';$('next').hidden=false}
+$('next').onclick=()=>{i++;if(i<10)show();else end()};
+function end(){
+  $('meta').textContent='Round complete';$('q').textContent='Your score';$('next').hidden=true;
+  $('opts').innerHTML='<div id="big">'+score+' / 10</div><div>'+(score>=9?'Outstanding!':score>=7?'Great job!':score>=5?'Not bad!':'Keep practicing!')+'</div><button id="again">Play again</button>';
+  $('again').onclick=start}
+start();
+</script></body></html>

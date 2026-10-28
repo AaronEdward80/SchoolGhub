@@ -1,0 +1,32 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Flap Glide</title>
+<style>html,body{margin:0;height:100%;background:#0f1220;color:#e8ebff;font-family:system-ui,sans-serif;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center}canvas{background:#1d3a5f;border:2px solid #6c8cff;border-radius:8px;max-width:96vw;max-height:78vh}p{margin:8px;color:#8e94b8;font-size:14px;text-align:center}</style></head><body>
+<canvas id="c" width="380" height="520"></canvas>
+<p>Space / click / tap to flap. Glide through the gaps.</p>
+<script>
+const c=document.getElementById('c'),x=c.getContext('2d'),W=380,H=520;
+let b,pipes,score,best=0,state='ready',t=0;
+try{best=+localStorage.getItem('fg_best')||0}catch(e){}
+function newGame(){b={y:H/2,vy:0};pipes=[];score=0;t=0;state='play'}
+function flap(){if(state!=='play'){newGame();return}b.vy=-7.2}
+addEventListener('keydown',e=>{if(e.key===' '||e.key==='ArrowUp'){e.preventDefault();flap()}});
+c.addEventListener('mousedown',flap);c.addEventListener('touchstart',e=>{e.preventDefault();flap()},{passive:false});
+function step(){
+  if(state!=='play')return;t++;
+  b.vy+=.42;b.y+=b.vy;
+  if(t%95===1){const gap=Math.max(120,170-score*2);pipes.push({x:W,gy:60+Math.random()*(H-gap-120),gap,scored:false})}
+  const sp=2.6+Math.min(2,score*.06);pipes.forEach(p=>p.x-=sp);pipes=pipes.filter(p=>p.x>-60);
+  for(const p of pipes){if(!p.scored&&p.x+50<80){p.scored=true;score++}
+    if(80+12>p.x&&80-12<p.x+50&&(b.y-12<p.gy||b.y+12>p.gy+p.gap))die()}
+  if(b.y>H-12||b.y<-30)die();
+}
+function die(){state='over';best=Math.max(best,score);try{localStorage.setItem('fg_best',best)}catch(e){}}
+function draw(){
+  x.fillStyle='#1d3a5f';x.fillRect(0,0,W,H);
+  x.fillStyle='#2a5a8a';for(let i=0;i<5;i++)x.fillRect((i*130-t*.5)%(W+130)-60,60+i*70,90,20);
+  (pipes||[]).forEach(p=>{x.fillStyle='#6cffa0';x.fillRect(p.x,0,50,p.gy);x.fillRect(p.x,p.gy+p.gap,50,H);x.fillStyle='#3fbf6a';x.fillRect(p.x-4,p.gy-16,58,16);x.fillRect(p.x-4,p.gy+p.gap,58,16)});
+  if(b){x.save();x.translate(80,b.y);x.rotate(Math.max(-.5,Math.min(1,b.vy*.08)));x.fillStyle='#ffe45c';x.beginPath();x.ellipse(0,0,15,12,0,0,7);x.fill();x.fillStyle='#ffa45c';x.fillRect(8,-2,10,5);x.fillStyle='#000';x.fillRect(4,-6,3,3);x.restore()}
+  x.fillStyle='#fff';x.font='bold 34px system-ui';x.textAlign='center';x.fillText(score||0,W/2,60);
+  if(state!=='play'){x.fillStyle='rgba(0,0,0,.55)';x.fillRect(0,0,W,H);x.fillStyle='#fff';x.font='28px system-ui';x.fillText(state==='over'?'Game over — '+score:'FLAP GLIDE',W/2,H/2-10);x.font='16px system-ui';x.fillText('Best '+best+' · Space or tap to play',W/2,H/2+22)}
+}
+setInterval(()=>{step();draw()},1000/60);
+</script></body></html>

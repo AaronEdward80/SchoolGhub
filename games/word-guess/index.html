@@ -1,0 +1,54 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Word Guess</title>
+<style>
+*{box-sizing:border-box}body{margin:0;min-height:100vh;background:#0f1220;color:#e8ebff;font-family:system-ui,sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:12px;user-select:none}
+h1{margin:0 0 6px;font-size:1.3rem}#msg{height:24px;margin-bottom:8px;color:#ffd65c}
+#grid{display:grid;grid-template-columns:repeat(5,56px);gap:6px;margin-bottom:14px}
+.t{width:56px;height:56px;border:2px solid #2a3050;display:flex;align-items:center;justify-content:center;font-size:1.7rem;font-weight:700;text-transform:uppercase;border-radius:6px}
+.t.f{border-color:#6c8cff}.t.g{background:#3fa56b;border-color:#3fa56b}.t.y{background:#c9a227;border-color:#c9a227}.t.n{background:#3a3f5c;border-color:#3a3f5c}
+#kb{display:flex;flex-direction:column;gap:6px;align-items:center}.kr{display:flex;gap:5px}
+.k{min-width:32px;height:46px;padding:0 8px;border:0;border-radius:6px;background:#2a3050;color:#e8ebff;font:600 .95rem system-ui;cursor:pointer;text-transform:uppercase}
+.k.g{background:#3fa56b}.k.y{background:#c9a227}.k.n{background:#171a2e;color:#777}.k.w{min-width:60px}
+#new{margin-top:12px;background:#6c8cff;color:#fff;border:0;padding:9px 16px;border-radius:8px;font:inherit;cursor:pointer}
+@keyframes sh{25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}.shake{animation:sh .3s}
+</style></head><body>
+<h1>Word Guess</h1><div id="msg"></div><div id="grid"></div><div id="kb"></div><button id="new">New word</button>
+<script>
+const WORDS=[...new Set(`about above actor admit adult after again agree ahead alarm album alert alike alive allow alone along alter among angel anger angle angry apart apple apply arena argue arise armor array aside asset audio avoid award aware awful basic beach beard begin being below bench berry birth black blame blank blast blind block blood bloom board boost bound brain brand brave bread break breed brick bride brief bring broad brown brush build bunch burst cabin cable candy carry carve catch cause chain chair chalk charm chase cheap check cheek cheer chess chest chief child chill choir civic claim class clean clear clerk click cliff climb clock close cloth cloud coach coast color couch could count court cover crack craft crane crash crawl crazy cream crisp cross crowd crown crush curve cycle daily dance dairy death delay depth diary dirty dizzy donor doubt dozen draft drain drama dream dress drift drink drive eager early earth eight elbow empty enemy enjoy enter equal error event every exact exist extra faint fairy faith false fancy fault feast fence fever fiber field fifth fight final flame flash fleet float flock flood floor flour focus force forge forth found frame fresh front frost fruit funny ghost giant given glass globe glory glove grace grade grain grand grant grape grass great green greet grill group guard guess guest guide habit happy harsh heart heavy hello hobby honey honor horse hotel house human humor ideal image index inner input issue ivory jelly jewel joint judge juice knife knock label labor large laser later laugh layer learn lemon level light limit linen local logic loose lucky lunch magic major maple march match maybe mayor media melon mercy metal might minor mixed model money month moral motor mount mouse mouth movie music naive nerve never newly night noble noise north novel nurse ocean offer often olive onion opera orbit order other ought outer owner paint panel paper party pasta patch pause peace pearl phase phone photo piano piece pilot pitch place plain plane plant plate plaza point polar pound power press price pride prime print prize proof proud pulse queen quick quiet quote radio raise range rapid ratio reach ready realm relax reply rider ridge right river robot rocky rough round route royal rural salad sauce scale scene scope score sense serve seven shade shake shall shape share sharp sheep sheet shelf shell shift shine shirt shoot shore short shout shown sight silly since skill sleep slice slide small smart smile smoke snake solid solve sound south space spare speak speed spell spend spice spoon sport spray squad stack staff stage stair stamp stand stare start state steam steel steep stick still stone store storm story straw strip study stuff style sugar suite sunny super sweet swing table taste teach thank their theme there thick thing think third those three throw thumb tiger tight title toast today tooth topic total touch tough tower trace track trade trail train treat trend trial tribe trick truck truly trust truth twice uncle under union unity until upper urban usage usual valid value vapor video visit vital vivid vocal voice waste watch water weigh wheel where which while white whole whose width woman world worry worth would wound write wrong young youth zebra`.split(/\s+/))].filter(w=>w.length===5);
+const $=id=>document.getElementById(id);
+let ans,row,col,guesses,over,kstate;
+const grid=$('grid');
+for(let i=0;i<30;i++){const d=document.createElement('div');d.className='t';grid.appendChild(d)}
+const tiles=[...grid.children];
+['qwertyuiop','asdfghjkl','zxcvbnm'].forEach((r,ri)=>{const d=document.createElement('div');d.className='kr';
+  if(ri===2)d.appendChild(key('enter','Enter',1));
+  [...r].forEach(ch=>d.appendChild(key(ch,ch)));
+  if(ri===2)d.appendChild(key('back','Del',1));$('kb').appendChild(d)});
+function key(v,label,w){const b=document.createElement('button');b.className='k'+(w?' w':'');b.textContent=label;b.dataset.k=v;b.onclick=()=>press(v);return b}
+function newGame(){ans=WORDS[Math.floor(Math.random()*WORDS.length)];row=0;col=0;guesses=['','','','','',''];over=false;kstate={};
+  tiles.forEach(t=>{t.textContent='';t.className='t'});document.querySelectorAll('.k').forEach(k=>k.className='k'+(k.classList.contains('w')?' w':''));$('msg').textContent='';$('new').blur()}
+function msg(s){$('msg').textContent=s}
+function press(k){
+  if(over)return;
+  if(k==='back'){if(col>0){col--;guesses[row]=guesses[row].slice(0,-1);const t=tiles[row*5+col];t.textContent='';t.classList.remove('f')}return}
+  if(k==='enter'){submit();return}
+  if(/^[a-z]$/.test(k)&&col<5){guesses[row]+=k;const t=tiles[row*5+col];t.textContent=k;t.classList.add('f');col++}
+}
+function submit(){
+  if(col<5){msg('Not enough letters');shake();return}
+  const g=guesses[row];
+  if(!WORDS.includes(g)){msg('Not in word list');shake();return}
+  const res=Array(5).fill('n'),left={};
+  for(let i=0;i<5;i++){if(g[i]===ans[i])res[i]='g';else left[ans[i]]=(left[ans[i]]||0)+1}
+  for(let i=0;i<5;i++)if(res[i]!=='g'&&left[g[i]]>0){res[i]='y';left[g[i]]--}
+  const rank={n:0,y:1,g:2};
+  for(let i=0;i<5;i++){tiles[row*5+i].className='t '+res[i];if((rank[res[i]]||0)>=(rank[kstate[g[i]]]||0)&&!(kstate[g[i]]==='g'))kstate[g[i]]=res[i]}
+  document.querySelectorAll('.k').forEach(k=>{const s=kstate[k.dataset.k];if(s)k.className='k'+(k.classList.contains('w')?' w':'')+' '+s});
+  msg('');
+  if(g===ans){over=true;msg('You got it in '+(row+1)+'!');return}
+  row++;col=0;
+  if(row>=6){over=true;msg('The word was '+ans.toUpperCase())}
+}
+function shake(){const els=tiles.slice(row*5,row*5+5);els.forEach(e=>{e.classList.remove('shake');void e.offsetWidth;e.classList.add('shake')})}
+addEventListener('keydown',e=>{if(e.ctrlKey||e.metaKey||e.altKey)return;const k=e.key;if(k==='Enter'){e.preventDefault();press('enter')}else if(k==='Backspace')press('back');else if(/^[a-zA-Z]$/.test(k))press(k.toLowerCase())});
+$('new').onclick=newGame;newGame();
+</script></body></html>

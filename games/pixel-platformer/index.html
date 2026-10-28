@@ -1,0 +1,85 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Pixel Platformer</title>
+<style>html,body{margin:0;height:100%;background:#0f1220;color:#e8ebff;font-family:system-ui,sans-serif;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center}canvas{background:#6cb4ff;border:2px solid #6c8cff;border-radius:8px;max-width:96vw;max-height:78vh}p{margin:8px;color:#8e94b8;font-size:13px;text-align:center}</style></head><body>
+<canvas id="c" width="640" height="320"></canvas>
+<p>←/→ or A/D to move, Space / ↑ / W to jump. Collect coins, avoid spikes and slimes, reach the flag.</p>
+<script>
+const c=document.getElementById('c'),x=c.getContext('2d'),T=32,VW=640,VH=320;
+// legend: # ground, = platform, C coin, ^ spike, E enemy, F flag, P start
+const LV=[[
+"                                                  ",
+"                                                  ",
+"                                                  ",
+"                                                  ",
+"                       C C                        ",
+"            C        =====        C               ",
+"           ===                  =====           F ",
+"                                              ====",
+"   P        ^      E        ^^         E          ",
+"##################   ##########   ###############"],
+[
+"                                                  ",
+"                                                  ",
+"                                C  C              ",
+"               C               ====               ",
+"              ===        C                        ",
+"      C                 ===          C            ",
+"     ===        E                   ===         F ",
+"                =====                           ===",
+"  P         ^^^           ^^^      E     ^^       ",
+"#########   ######   ########   #####   ##########"],
+[
+"                                                  ",
+"                                         C        ",
+"                    C   C               ===       ",
+"        C          =======                        ",
+"       ===                     C                  ",
+"                  E        ======       ^      F  ",
+"   C        =====                      ===   =====",
+"  ===                           E                 ",
+"  P      ^^      ^^^     ^^          ^^^          ",
+"######   ####   ######   ###   ###   #####   ######"]];
+let lvl=0,map,px,py,vx,vy,ground,en,coins,total,cam,state='ready',keys={},dead=0,t=0;
+function load(n){map=LV[n].map(r=>r.split(''));en=[];coins=0;total=0;
+  map.forEach((row,r)=>row.forEach((ch,q)=>{if(ch==='P'){px=q*T;py=r*T;map[r][q]=' '}if(ch==='E'){en.push({x:q*T,y:r*T+8,vx:-1,w:26,h:24});map[r][q]=' '}if(ch==='C')total++}));
+  vx=vy=0;cam=0}
+function newGame(){lvl=0;dead=0;load(0);state='play'}
+function solid(q,r){if(r<0)return false;if(q<0||q>=map[0].length)return true;if(r>=map.length)return false;const ch=map[r][q];return ch==='#'||ch==='='}
+function tile(q,r){return(r>=0&&r<map.length&&q>=0&&q<map[0].length)?map[r][q]:' '}
+function jump(){if(state!=='play'){newGame();return}if(ground){vy=-10.5;ground=false}}
+addEventListener('keydown',e=>{keys[e.key.toLowerCase()]=true;if(e.key===' '||e.key.startsWith('Arrow'))e.preventDefault();if(e.key===' '||e.key==='ArrowUp'||e.key.toLowerCase()==='w')jump();else if(state!=='play')newGame()});
+addEventListener('keyup',e=>keys[e.key.toLowerCase()]=false);
+c.addEventListener('click',()=>{if(state!=='play')newGame()});
+function moveX(dx){px+=dx;const w=22,h=28,t0=Math.floor(py/T),t1=Math.floor((py+h-1)/T);
+  if(dx>0){const q=Math.floor((px+w-1)/T);for(let r=t0;r<=t1;r++)if(solid(q,r)){px=q*T-w;break}}else if(dx<0){const q=Math.floor(px/T);for(let r=t0;r<=t1;r++)if(solid(q,r)){px=(q+1)*T;break}}}
+function moveY(dy){py+=dy;const w=22,h=28,q0=Math.floor(px/T),q1=Math.floor((px+w-1)/T);ground=false;
+  if(dy>0){const r=Math.floor((py+h-1)/T);for(let q=q0;q<=q1;q++)if(solid(q,r)){py=r*T-h;vy=0;ground=true;break}}else if(dy<0){const r=Math.floor(py/T);for(let q=q0;q<=q1;q++)if(solid(q,r)){py=(r+1)*T;vy=0;break}}}
+function die(){dead++;load(lvl)}
+function step(){
+  if(state!=='play')return;t++;
+  const sp=3.2;let dx=0;if(keys['arrowleft']||keys['a'])dx-=sp;if(keys['arrowright']||keys['d'])dx+=sp;
+  moveX(dx);vy=Math.min(12,vy+.5);moveY(vy);
+  if(px<0)px=0;if(py>map.length*T+60){die();return}
+  const w=22,h=28;
+  for(const[ox,oy]of[[0,0],[w-1,0],[0,h-1],[w-1,h-1],[w/2,h/2]]){const q=Math.floor((px+ox)/T),r=Math.floor((py+oy)/T),ch=tile(q,r);
+    if(ch==='C'){map[r][q]=' ';coins++}if(ch==='^'&&oy>=h/2){die();return}if(ch==='F'){if(lvl<LV.length-1){lvl++;load(lvl)}else state='won';return}}
+  for(const e of en){e.x+=e.vx;const fr=Math.floor((e.x+(e.vx>0?e.w:0))/T),fl=Math.floor((e.y+e.h)/T);if(solid(fr,Math.floor((e.y+e.h/2)/T))||!solid(fr,fl)||tile(fr,Math.floor((e.y+e.h-1)/T))==='^')e.vx*=-1;
+    if(px<e.x+e.w&&px+w>e.x&&py<e.y+e.h&&py+h>e.y){if(vy>1&&py+h-e.y<16){e.dead=true;vy=-7}else{die();return}}}
+  en=en.filter(e=>!e.dead);
+  cam=Math.max(0,Math.min(map[0].length*T-VW,px-VW/2));
+}
+function draw(){
+  x.fillStyle='#6cb4ff';x.fillRect(0,0,VW,VH);x.fillStyle='rgba(255,255,255,.7)';for(let i=0;i<6;i++){const cx=((i*230-cam*.3)%(VW+200)+VW+200)%(VW+200)-60;x.fillRect(cx,40+i%3*30,70,18);x.fillRect(cx+14,30+i%3*30,40,12)}
+  if(!map)return;
+  for(let r=0;r<map.length;r++)for(let q=0;q<map[0].length;q++){const ch=map[r][q],sx=q*T-cam,sy=r*T;if(sx<-T||sx>VW)continue;
+    if(ch==='#'){x.fillStyle='#6b4a2a';x.fillRect(sx,sy,T,T);x.fillStyle='#4aa84a';x.fillRect(sx,sy,T,8)}
+    else if(ch==='='){x.fillStyle='#a8743a';x.fillRect(sx,sy,T,12);x.fillStyle='#c9944a';x.fillRect(sx,sy,T,4)}
+    else if(ch==='C'){x.fillStyle='#ffe45c';x.beginPath();x.arc(sx+16,sy+16+Math.sin(t/10+q)*3,8,0,7);x.fill()}
+    else if(ch==='^'){x.fillStyle='#ccc';x.beginPath();x.moveTo(sx+2,sy+T);x.lineTo(sx+16,sy+10);x.lineTo(sx+T-2,sy+T);x.fill()}
+    else if(ch==='F'){x.fillStyle='#fff';x.fillRect(sx+14,sy-32,4,64);x.fillStyle='#ff5c7a';x.fillRect(sx+18,sy-32,22,14)}}
+  en.forEach(e=>{x.fillStyle='#6cffa0';x.fillRect(e.x-cam,e.y,e.w,e.h);x.fillStyle='#000';x.fillRect(e.x-cam+5,e.y+6,4,4);x.fillRect(e.x-cam+16,e.y+6,4,4)});
+  if(state!=='ready'){x.fillStyle='#2a3270';x.fillRect(px-cam,py,22,28);x.fillStyle='#ffd9a8';x.fillRect(px-cam+4,py+3,14,9);x.fillStyle='#000';x.fillRect(px-cam+(keys['arrowleft']||keys['a']?5:12),py+6,3,3)}
+  x.fillStyle='#0f1220';x.font='bold 16px system-ui';x.textAlign='left';x.fillText('Level '+(lvl+1)+'/'+LV.length+'   Coins '+coins+'/'+total+'   Deaths '+dead,10,22);
+  if(state!=='play'){x.fillStyle='rgba(0,0,0,.65)';x.fillRect(0,0,VW,VH);x.fillStyle='#fff';x.textAlign='center';x.font='28px system-ui';x.fillText(state==='won'?'You won! Deaths: '+dead:'PIXEL PLATFORMER',VW/2,VH/2-6);x.font='15px system-ui';x.fillText('Press any key or click to play',VW/2,VH/2+24)}
+}
+load(0);setInterval(()=>{step();draw()},1000/60);
+</script></body></html>
