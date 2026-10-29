@@ -1,0 +1,46 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Star Defenders</title>
+<style>html,body{margin:0;height:100%;background:#0f1220;color:#e8ebff;font-family:system-ui,sans-serif;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center}canvas{background:#080a14;border:2px solid #6c8cff;border-radius:8px;max-width:96vw;max-height:78vh}p{margin:8px;color:#8e94b8;font-size:14px;text-align:center}</style></head><body>
+<canvas id="c" width="560" height="480"></canvas>
+<p>←/→ or A/D to move, Space to shoot (or move mouse and click). Press any key to start.</p>
+<script>
+const c=document.getElementById('c'),x=c.getContext('2d'),W=560,H=480;
+let me,inv,dir,shots,bombs,score,lives,wave,state='ready',keys={},cool=0,tick=0,hurt=0;
+function mk(){inv=[];for(let r=0;r<4+Math.min(wave,2);r++)for(let i=0;i<9;i++)inv.push({x:60+i*46,y:50+r*36,r,alive:true});dir=1}
+function newGame(){me={x:W/2};shots=[];bombs=[];score=0;lives=3;wave=1;hurt=0;mk();state='play'}
+function shoot(){if(cool<=0){shots.push({x:me.x,y:H-50});cool=18}}
+addEventListener('keydown',e=>{keys[e.key.toLowerCase()]=true;if(e.key===' '||e.key.startsWith('Arrow'))e.preventDefault();if(state!=='play')newGame()});
+addEventListener('keyup',e=>keys[e.key.toLowerCase()]=false);
+c.addEventListener('mousemove',e=>{if(state==='play'){const r=c.getBoundingClientRect();me.x=(e.clientX-r.left)*W/r.width}});
+c.addEventListener('click',()=>{if(state!=='play')newGame();else shoot()});
+function step(){
+  if(state!=='play')return;tick++;cool--;
+  if(keys['arrowleft']||keys['a'])me.x-=5;if(keys['arrowright']||keys['d'])me.x+=5;if(keys[' '])shoot();
+  me.x=Math.max(20,Math.min(W-20,me.x));
+  shots.forEach(s=>s.y-=8);shots=shots.filter(s=>s.y>0);
+  bombs.forEach(b=>b.y+=3+wave*.3);bombs=bombs.filter(b=>b.y<H);
+  const alive=inv.filter(i=>i.alive);const speed=(0.5+wave*.15)*(1+(36-alive.length)/25);
+  let edge=false;alive.forEach(i=>{i.x+=dir*speed;if(i.x<20||i.x>W-20)edge=true});
+  if(edge){dir*=-1;alive.forEach(i=>{i.y+=14;i.x+=dir*speed})}
+  if(alive.length&&tick%Math.max(18,50-wave*4)===0){const s=alive[Math.floor(Math.random()*alive.length)];bombs.push({x:s.x,y:s.y})}
+  for(const s of shots)for(const i of alive){if(Math.abs(s.x-i.x)<16&&Math.abs(s.y-i.y)<12){i.alive=false;s.y=-99;score+=10+(4-Math.min(3,i.r))*5}}
+  for(const b of bombs){if(Math.abs(b.x-me.x)<16&&b.y>H-50&&b.y<H-20){b.y=H+99;lives--;hurt=40;if(lives<=0)state='over'}}
+  if(alive.some(i=>i.y>H-70))state='over';
+  if(!alive.length){wave++;mk();bombs=[]}
+}
+function draw(){
+  x.fillStyle='#080a14';x.fillRect(0,0,W,H);
+  (inv||[]).forEach(i=>{if(!i.alive)return;x.fillStyle=['#ff5c7a','#ffa45c','#6cffa0','#6c8cff','#c56cff','#ffe45c'][i.r%6];x.fillRect(i.x-13,i.y-8,26,16);x.fillStyle='#080a14';x.fillRect(i.x-8,i.y-3,5,5);x.fillRect(i.x+3,i.y-3,5,5)});
+  x.fillStyle='#fff';(shots||[]).forEach(s=>x.fillRect(s.x-1.5,s.y,3,10));
+  x.fillStyle='#ffa45c';(bombs||[]).forEach(b=>x.fillRect(b.x-2,b.y,4,10));
+  if(me){x.fillStyle=hurt>0?(Math.floor(hurt/3)%2?'#ff3b57':'#ffffff'):'#6c8cff';x.fillRect(me.x-18,H-36,36,12);x.fillRect(me.x-5,H-46,10,10);
+    if(hurt>0){x.globalAlpha=Math.min(1,hurt/25);x.fillStyle='#ff3b57';x.font='bold 18px system-ui';x.textAlign='center';x.fillText('-1 life',me.x,H-60-(40-hurt)*.7);x.globalAlpha=1}}
+  x.fillStyle='#e8ebff';x.font='16px system-ui';x.textAlign='left';x.fillText('Score '+(score||0)+'  Wave '+(wave||1),10,22);x.textAlign='right';if(hurt>0&&Math.floor(hurt/4)%2)x.fillStyle='#ff3b57';x.fillText('Lives '+(lives||0),W-10,22);x.fillStyle='#e8ebff';
+  if(state!=='play'){x.fillStyle='rgba(0,0,0,.6)';x.fillRect(0,0,W,H);x.fillStyle='#fff';x.textAlign='center';x.font='30px system-ui';x.fillText(state==='over'?'Game over — '+score:'STAR DEFENDERS',W/2,H/2-6);x.font='16px system-ui';x.fillText('Press any key or click to play',W/2,H/2+26)}
+}
+setInterval(()=>{
+  step();
+  x.save();if(hurt>0)x.translate((Math.random()-.5)*hurt/3,(Math.random()-.5)*hurt/3);
+  draw();x.restore();
+  if(hurt>0){x.fillStyle='rgba(255,50,80,'+(hurt/40*.38)+')';x.fillRect(0,0,W,H);hurt--}
+},1000/60);
+</script></body></html>

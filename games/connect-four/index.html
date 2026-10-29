@@ -1,0 +1,54 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Connect Four</title>
+<style>
+body{margin:0;background:#0f1220;color:#e8ebff;font-family:system-ui,sans-serif;display:flex;flex-direction:column;align-items:center;padding:12px}
+h1{margin:6px 0;font-size:22px}.bar{display:flex;gap:10px;margin:8px 0;flex-wrap:wrap;justify-content:center}
+button,select{background:#6c8cff;color:#fff;border:0;border-radius:8px;padding:8px 12px;font-size:14px;cursor:pointer}
+#b{display:grid;grid-template-columns:repeat(7,var(--s));gap:6px;background:#2a3270;padding:8px;border-radius:12px}
+.c{width:var(--s);height:var(--s);border-radius:50%;background:#0f1220;cursor:pointer}.c.R{background:#ff5c7a}.c.Y{background:#ffe45c}.c.w{box-shadow:0 0 0 4px #fff inset}
+.c.drop{position:relative;z-index:2;animation:fall .6s both}
+@keyframes fall{
+ 0%{transform:translateY(calc(var(--d) * -1));animation-timing-function:cubic-bezier(.55,0,1,.45)}
+ 62%{transform:translateY(0);animation-timing-function:ease-out}
+ 78%{transform:translateY(-14px);animation-timing-function:ease-in}
+ 90%{transform:translateY(0);animation-timing-function:ease-out}
+ 95%{transform:translateY(-4px);animation-timing-function:ease-in}
+ 100%{transform:translateY(0)}}
+#msg{height:26px;font-weight:600;color:#ffe45c;margin:6px}
+</style></head><body>
+<h1>Connect Four</h1>
+<div class="bar"><select id="m"><option value="cpu">vs Computer (you are red)</option><option value="two">2 players</option></select><button id="new">New game</button></div>
+<div id="msg"></div><div id="b"></div>
+<script>
+const R=6,C=7;let g,turn,done,wl=[],busy=false,lm=null,gid=0;const B=document.getElementById('b'),msg=document.getElementById('msg');
+const cpuMode=()=>document.getElementById('m').value==='cpu';
+function init(){gid++;g=Array.from({length:R},()=>Array(C).fill(''));turn='R';done=false;wl=[];busy=false;lm=null;msg.textContent='Red to move';draw()}
+function draw(){const s=Math.max(30,Math.min(60,Math.floor((innerWidth-60)/C)));document.documentElement.style.setProperty('--s',s+'px');B.innerHTML='';
+  for(let r=0;r<R;r++)for(let c=0;c<C;c++){const d=document.createElement('div');d.className='c '+g[r][c]+(wl.some(([a,b])=>a===r&&b===c)?' w':'');
+    if(lm&&lm[0]===r&&lm[1]===c){d.classList.add('drop');d.style.setProperty('--d',((r+1)*(s+6)+20)+'px')}
+    d.onclick=()=>drop(c);B.appendChild(d)}}
+function row(g,c){for(let r=R-1;r>=0;r--)if(!g[r][c])return r;return -1}
+function check(g,p){for(let r=0;r<R;r++)for(let c=0;c<C;c++)for(const[dr,dc]of[[0,1],[1,0],[1,1],[1,-1]]){const cells=[];for(let k=0;k<4;k++){const rr=r+dr*k,cc=c+dc*k;if(rr<0||rr>=R||cc<0||cc>=C||g[rr][cc]!==p)break;cells.push([rr,cc])}if(cells.length===4)return cells}return null}
+function score(g){let s=0;const w=(a)=>{const y=a.filter(x=>x==='Y').length,r=a.filter(x=>x==='R').length,e=a.filter(x=>!x).length;if(y&&r)return 0;if(y===3&&e===1)return 5;if(y===2&&e===2)return 2;if(r===3&&e===1)return -6;if(r===2&&e===2)return -2;return 0};
+  for(let r=0;r<R;r++)for(let c=0;c<C;c++)for(const[dr,dc]of[[0,1],[1,0],[1,1],[1,-1]]){const a=[];for(let k=0;k<4;k++){const rr=r+dr*k,cc=c+dc*k;if(rr<0||rr>=R||cc<0||cc>=C)break;a.push(g[rr][cc])}if(a.length===4)s+=w(a)}
+  for(let r=0;r<R;r++)if(g[r][3]==='Y')s+=3;return s}
+function mm(g,d,al,be,max){if(check(g,'Y'))return{s:1000+d};if(check(g,'R'))return{s:-1000-d};if(d===0||g[0].every(x=>x))return{s:score(g)};
+  let best={s:max?-1e9:1e9,c:-1};for(const c of[3,2,4,1,5,0,6]){const r=row(g,c);if(r<0)continue;g[r][c]=max?'Y':'R';const v=mm(g,d-1,al,be,!max).s;g[r][c]='';
+    if(max?v>best.s:v<best.s)best={s:v,c};if(max)al=Math.max(al,v);else be=Math.min(be,v);if(al>=be)break}return best}
+function drop(c){if(done||busy)return;if(cpuMode()&&turn==='Y')return;place(c)}
+function after(){
+  if(done||!cpuMode()||turn!=='Y')return;
+  const id=gid;setTimeout(()=>{if(id!==gid||done)return;const r=mm(g.map(x=>x.slice()),5,-1e9,1e9,true);if(r.c>=0)place(r.c)},150)}
+function place(c){
+  const r=row(g,c);if(r<0)return;
+  busy=true;g[r][c]=turn;lm=[r,c];const who=turn,w=check(g,turn),full=g[0].every(x=>x);
+  if(!w&&!full){turn=turn==='R'?'Y':'R';msg.textContent=(turn==='R'?'Red':'Yellow')+' to move'}
+  draw();
+  const id=gid;
+  setTimeout(()=>{
+    if(id!==gid)return;
+    lm=null;busy=false;
+    if(w){done=true;wl=w;msg.textContent=(who==='R'?'Red':'Yellow')+' wins!'}
+    else if(full){done=true;msg.textContent="It's a draw."}
+    draw();after()},640)}
+document.getElementById('new').onclick=init;document.getElementById('m').onchange=init;addEventListener('resize',draw);init();
+</script></body></html>
